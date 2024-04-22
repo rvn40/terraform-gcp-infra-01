@@ -65,6 +65,18 @@ resource "google_compute_firewall" "documentorai_firewall_internet_standardwebpo
   }
 }
 
+resource "google_compute_firewall" "documentorai_firewall_internet_dockerapiport" {
+  name        = "documentorai-firewall-internet-dockerapiport"
+  description = "Open webport connection for internet source"
+  network     = google_compute_network.documentorai_vpc_01.id
+  source_ranges = ["0.0.0.0/0"]
+  source_tags = ["documentorai-firewall-internet-dockerapiport"]
+  allow {
+    protocol = "tcp"
+    ports    = ["2375"]
+  }
+}
+
 resource "google_compute_firewall" "documentorai_firewall_internet_standardsshport" {
   name        = "documentorai-firewall-internet-standardsshport"
   description = "Open ssh porot connection for internet source"
@@ -103,7 +115,7 @@ resource "google_compute_instance" "documentorai-vm-01" {
 
   metadata = {
     ssh-keys       = "rivan:ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAhiHWyHv+ZJ34vb3yV/ifp7ma8d4lvBViyeVDS4074d48lb+ya3O9oletZXexEyv3pXDtW1gXQIHRZr/Qh0h8TwSTKo+29Obp9QDbP3Nmwp12llDbMiYuXGn7McpuhWUYvW8zTSfPVBNBKtUKf+JiAf3Z4vCYkcAJKx5Xg3Zf2lmwF41E1EJIRAY0qSb87rbDSmyRhdQHhS4aUsLvxGhSYTuf+gh8ohgAPmdAqBU728Waf85l2xUGq4BJMt7EsZWMvOmowtVGJdj4cXH26CtoDgFF5DzL4CPFdztQpNKs5f31SXfhpUNlY7EpZ0jkoNeF5xQf/5EwNt22gbxlHUNwCw== rivan"
-    startup-script = "sudo apt update -y && sudo apt install -y git curl wget zsh &&\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"  && sed -i \"s/robbyrussell/bureau/g\" $HOME/.zshrc && curl -sSL https://get.docker.com/ | sh"
+    startup-script = "#!/bin/bash\nsudo apt-get update -y\nsudo apt-get install -y zsh\nsudo chsh -s $(which zsh) $(whoami)\ncurl -fsSL https://get.docker.com -o get-docker.sh\nsudo sh get-docker.sh\nsudo usermod -aG docker $(whoami)\nsudo systemctl start docker\nsudo systemctl enable docker\nrm get-docker.sh"
   }
 
   name = "documentorai-vm-01"
@@ -136,6 +148,13 @@ resource "google_compute_instance" "documentorai-vm-01" {
 
   tags = ["documentorai-firewall-internet-standardsshport", "documentorai-firewall-internet-standardwebport"]
   zone = "asia-southeast1-c"
+}
+
+resource "google_artifact_registry_repository" "documentorai_be_service" {
+  location = "asia-southeast1"
+  repository_id = "documentorai-be-service"
+  description = "Documentor AI BE service"
+  format = "docker"
 }
 
 output "documentorai_vpc_01" {
